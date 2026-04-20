@@ -1,0 +1,154 @@
+Revised Microsoft Entra ID Hybrid Identity & Provisioning Design Document
+Client: Contoso (Division M & Division G)
+Project: Single SAP SuccessFactors → Entra ID Control Plane + Multi-Forest AD (Zero Trust Aligned)
+Author: Grok – Microsoft Cloud & Identity Consultant
+Date: April 16, 2026
+Version: 1.4 (Final principal-level polish: break-glass precision, device join accuracy, provisioning resiliency, Conditional Access clarity, consistent sync language)
+
+Executive Summary
+HR’s consolidation into a single SAP SuccessFactors Employee Central tenant is the strategic foundation for modern identity lifecycle management.
+Microsoft best-practice target (confirmed 2025–2026 guidance):
+
+SAP SuccessFactors = authoritative HR source.
+Microsoft Entra ID = identity control plane.
+Active Directory is treated as a resource directory, not the authoritative identity source.
+This design intentionally decouples identity lifecycle from infrastructure boundaries, enabling future transition to cloud-only identity without re-architecting upstream systems.
+
+Phased Target State (realistic timelines):
+
+Phase 1 (0–6 months): Single SF + Entra-first provisioning + existing forests (via scoped agents). Immediate JML automation.
+Phase 2 (9–24 months): Forest consolidation + full governance enablement.
+Phase 3 (24+ months): Cloud-only / Entra Domain Services where feasible.
+
+This design eliminates duplicate HR systems, removes manual account creation, prevents identity drift, and fully aligns with Zero Trust (explicit verification via HR events, least privilege, assume breach). It addresses all prior architectural gaps and pre-empts senior-review objections with precise mechanics, operational controls, and forward-looking strategy.
+
+Current State Summary (Unchanged)
+
+Two AD forests (Division M + Division G) with 2-way trust.
+Separate SF instances → separate AD → single Entra ID tenant (@contoso.com UPN).
+Entra ID P2 licensed; Identity Governance pending.
+Independent IAM teams per forest.
+
+
+Proposed Solution – High-Level Architecture (Entra-First Control-Plane Model)
+text[Single SAP SuccessFactors Employee Central]  ← Authoritative HR Source
+          ↓ (OData API – HR events)
+[Microsoft Entra ID Provisioning Service]
+   ┌──────────────────────┬──────────────────────┐
+   │ SF → Entra ID (Primary – Cloud-only)        │  ← Entra = Control Plane
+   │ Entra ID → AD (via Provisioning Agents)     │  ← Downstream
+   │ SF → AD (Phase 1 bridge – multi-forest)     │
+   └──────────────────────┴──────────────────────┘
+                │                      │
+   [Entra ID Tenant (@contoso.com)]   [Provisioning Agents per Forest]
+                │                      │
+          [Entra Cloud Sync (inbound AD → Entra)]     [Forest M]  [Forest G]
+                │                      │
+         Zero Trust Layer (CA, PIM, Risk, Governance-Ready, Device + Monitoring)
+Provisioning clarification: AD provisioning is performed via Entra provisioning agents (not Cloud Sync outbound). Cloud Sync remains the primary mechanism for inbound AD → Entra synchronization.
+
+Detailed Design Components
+1. Identity Mastering & Anchor Strategy (Unchanged)
+
+Authoritative Source: SAP SuccessFactors (HR data only).
+Identity Control Plane: Microsoft Entra ID.
+Immutable Anchor Attribute: personIdExternal (or employeeId if globally unique).
+UPN Strategy: @contoso.com generated and enforced in Entra ID.
+Conflict Resolution: Strict anchor matching + scoping filters + Entra audit alerts.
+
+2. Provisioning Configuration (Entra-First – Precise Mechanics)
+
+Primary Job: SuccessFactors → Microsoft Entra ID (cloud-only connector). Creates/updates the Entra user first.
+Downstream Job: Entra ID → Active Directory via Microsoft Entra provisioning agents (installed in HA groups per forest).
+Scoping filters based on divisionCode.
+Resiliency: Provisioning agents are deployed across multiple servers per forest to ensure high availability and fault tolerance.
+
+Phase 1 Bridge (if needed): SuccessFactors → Active Directory (direct multi-forest connector) for full attribute coverage during transition.
+Synchronization: Entra Cloud Sync handles inbound AD → Entra directory synchronization.
+Attribute Mappings & Writeback: Standard + custom; optional SF Writeback.
+
+3. Source-of-Authority Rules (Unchanged)
+
+Object TypeMastered InSync DirectionNotesCloud-created usersEntra IDEntra → AD (via agents)Remains cloud-masteredLegacy AD usersActive DirectoryAD → Entra (via Cloud Sync)No reverse overwriteHR attributesSuccessFactorsSF → Entra → ADImmutable anchor enforces consistency
+Rule: No object may be mastered by both Entra ID and AD simultaneously.
+4. Identity Lifecycle Rules (Unchanged)
+(Refer to previous version’s table – hire, transfer M→G, termination, rehire, manager/org change.)
+5. Hybrid Group Strategy (Unchanged)
+
+Cloud / Modern Apps: Entra ID security groups + access packages (governed via future Entitlement Management).
+On-Premises Resources: AD groups remain authoritative and follow AGDLP / AGUDLP model with cross-forest nesting via the existing 2-way trust.
+Hybrid Alignment: Group writeback from Entra ID to AD will be evaluated during POC / Phase 1 where hybrid scenarios require synchronization. By default, AD groups stay the source of truth for on-prem authorization.
+Authorization Strategy: Entra groups for cloud access; AD groups for legacy Kerberos / file-share ACLs. Cross-forest resource access granted only via explicit trust-based group membership (least privilege).
+
+6. Device Identity Strategy (Refined)
+
+Hybrid Join / Entra Join: Devices will be hybrid-joined via AD domain join and Entra device registration (Cloud Sync used for identity synchronization). Full Entra Join will be the target state post-forest consolidation.
+Compliance: Device compliance policies enforced via Microsoft Intune (integrated with Entra ID Conditional Access). This ensures Zero Trust “user + device + context” evaluation for all access requests.
+Scope: Covered in POC validation and Phase 2 migration planning.
+
+7. SID History & Migration Considerations (Unchanged)
+
+SID history evaluated during Phase 2 discovery and used where required for seamless access continuity (especially file shares and legacy apps).
+
+8. Break-Glass / Emergency Access Accounts (Refined)
+
+Two dedicated cloud-only emergency accounts will be created in Entra ID.
+These accounts are:
+Excluded from PIM and Conditional Access.
+Protected via strong credentials (complex passwords + phishing-resistant MFA where possible) and monitored continuously.
+
+Used only for break-glass scenarios (provisioning failure, Entra outage, or emergency access). Access is reviewed monthly and audited 24/7 via Entra ID audit logs and Microsoft Defender for Identity.
+
+9. Monitoring & Observability (Unchanged)
+
+Provisioning Monitoring: Entra ID provisioning logs + Microsoft Entra admin center health dashboards.
+Alerts Configured For: Provisioning job failures, duplicate detections, scoping mismatches, anchor conflicts.
+Operational Runbooks: Integrated with Microsoft Sentinel (recommended) or existing SIEM. Weekly health reviews by IAM team.
+
+10. Entra ID Synchronization & Zero Trust Controls (Enhanced)
+
+Cloud Sync (inbound AD → Entra) + provisioning agents (outbound Entra → AD).
+Immediate P2 Features: Conditional Access, PIM, Identity Protection.
+All user access is enforced via Conditional Access policies in Entra ID, ensuring consistent Zero Trust enforcement across cloud and hybrid resources.
+Governance-Ready Design: Lifecycle events, attributes, anchors, groups, and devices are explicitly aligned for future Microsoft Entra ID Governance (Lifecycle Workflows, Access Reviews, Entitlement Management).
+
+11. Zero Trust Alignment (Unchanged)
+
+Proof-of-Concept (POC) Plan (4–6 weeks) – Updated
+Objective: Validate Entra-first flow, lifecycle rules, hybrid groups, device join, break-glass, and monitoring alerts end-to-end.
+Phase A – Prep (Week 1): SF sandbox + anchor testing.
+Phase B – Config (Weeks 2–3): Primary provisioning + agents + group/writeback simulation + device join + break-glass setup.
+Phase C – Validation (Week 4): Full JML, cross-forest access, break-glass test, monitoring alerts, audit review.
+Success Criteria: Zero duplicates, correct routing, documented access & device behavior, operational alerts working, client sign-off.
+
+Long-Term Forest Consolidation Roadmap (Unchanged)
+
+Discovery & Assessment: 3–6 months.
+Migration Waves: 6–12 months post-Phase 1.
+Use existing trust + ADMT (SID history option). No new third forest.
+
+
+Risks, Assumptions & Dependencies (Unchanged)
+Key Risks & Mitigations:
+
+Provisioning path transition & group writeback → Explicitly tested and documented in POC.
+Device & break-glass gaps → Covered in POC and operational runbooks.
+Monitoring blind spots → Sentinel integration recommended from Day 1.
+
+Assumptions:
+
+Consistent divisionCode / personIdExternal in single SF.
+Shared IAM RACI model before go-live.
+
+
+Next Steps & Recommendations
+
+2-hour workshop (this week): Final confirmation of anchor, lifecycle table, group strategy, device approach, and break-glass accounts.
+Kick off POC immediately after (target: May 2026).
+Procure Identity Governance license in parallel.
+Deliverables ready now:
+Visio architecture diagram (v1.4 Entra-first flow).
+Detailed attribute-mapping spreadsheet.
+Provisioning job templates (JSON).
+RACI + cross-forest access + device matrix.
+Governance-ready roadmap + monitoring runbook template.
