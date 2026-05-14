@@ -1,0 +1,16 @@
+Category,Semperis ADFR,Quest RMAD DRE,Winner / Notes
+Core Focus,"Cyber-first, purpose-built for ransomware & destructive attacks on AD","Mature, flexible AD recovery (granular to full forest)",Semperis for cyber; Quest more general
+Automation Level,Full end-to-end forest recovery in as few as 5 clicks; highly orchestrated,Strong automation of Microsoft’s 40+ steps; Forest Recovery Console,Semperis (simpler for full forest)
+Malware / Clean Restore,Patented decoupling of AD from OS; clean OS recovery; strong prevention of rootkits,"Malware scanning, minimized backup footprint, clean OS & bare metal options",Tie – Both excellent
+Recovery Speed,Up to 90% reduction; fault-tolerant (auto-switches methods if a DC fails),5x faster than manual; strong phased recovery,Semperis edges for full forest
+Anywhere / Flexible Recovery,"Excellent: Any hardware (P2V, V2P, cloud); Azure-native backups & recovery; alternate subnets","Strong: Bare metal, clean OS, cloud (Azure/AWS), phased recovery",Semperis (more seamless cloud)
+Non-backed-up DC Recovery,Yes – topology monitoring & recovery of DCs not explicitly backed up,Good support via repromotion & IFM,Semperis
+Multi-Forest Support,Strong: Single console/portal for multiple forests,Supported but may require more configuration,Semperis
+Hybrid / Modern Support,"Windows Server 2025, Entra ID integration, Azure Blob immutable backups",Strong Windows support + cloud storage options,Semperis (newer features)
+Post-Breach Forensics,Built-in identity-centric forensics & change rollback,Good auditing & comparison capabilities,Semperis
+Backup Approach,Lightweight AD-only backups; immutable Azure; distribution points for scale,Efficient (omits risky components); Secure Storage (hardened); cloud options,Tie
+Validation & Testing,"Automated health checks, easy isolated lab replica, backup integrity validation","Strong validation, reporting, and testing options",Tie
+Ease of Use,Simpler web portal & fewer clicks for full recovery; less scripting,Mature console; powerful but can feel more complex in real incidents,Semperis (per user feedback)
+Pricing,Generally higher,More competitive / better for pricing & ROI in mid-market,Quest
+Customer Satisfaction,High ratings (esp. in large/complex environments); strong support for incidents,Very high (9.0–9.5 avg.); excellent support satisfaction,Quest (support); Semperis (features)
+Best For,"Large enterprises, multi-forest, high ransomware risk, cloud-heavy, speed-critical","Organizations wanting flexibility, granular recovery, proven maturity",Depends on needs
