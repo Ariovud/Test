@@ -1,0 +1,162 @@
+Step 1 — Build the Final Disable List
+
+
+Connect-MgGraph -Scopes "User.Read.All", "User.ReadWrite.All", "AuditLog.Read.All"
+
+$cutoffDate = "2026-01-01T00:00:00Z"
+$executionDate = Get-Date -Format "yyyy-MM-dd"
+$logPath = "C:\IAM\GuestDisable_$executionDate"
+New-Item -ItemType Directory -Path $logPath -Force
+
+# Pull all enabled guest accounts
+$allGuests = Get-MgUser -All `
+    -Filter "userType eq 'Guest' and accountEnabled eq true" `
+    -Property Id, DisplayName, UserPrincipalName, Mail, `
+             CreatedDateTime, SignInActivity, AccountEnabled |
+    Select-Object Id, DisplayName, UserPrincipalName, Mail,
+        CreatedDateTime, AccountEnabled,
+        @{N='LastSignIn';E={$_.SignInActivity.LastSignInDateTime}},
+        @{N='LastSignInDate';E={
+            if ($_.SignInActivity.LastSignInDateTime) {
+                [datetime]$_.SignInActivity.LastSignInDateTime
+            } else { $null }
+        }}
+
+# Accounts to disable:
+# 1. Last sign-in before 1 Jan 2026
+# 2. Never signed in (null LastSignIn)
+$toDisable = $allGuests | Where-Object {
+    $_.LastSignInDate -lt [datetime]$cutoffDate -or
+    $_.LastSignInDate -eq $null
+}
+
+$toKeep = $allGuests | Where-Object {
+    $_.LastSignInDate -ge [datetime]$cutoffDate
+}
+
+# Export both lists before touching anything
+$toDisable | Export-Csv "$logPath\Guests_ToDisable.csv" -NoTypeInformation
+$toKeep | Export-Csv "$logPath\Guests_ToKeep_Active.csv" -NoTypeInformation
+
+Write-Host "Accounts to disable: $($toDisable.Count)"
+Write-Host "Accounts remaining active: $($toKeep.Count)"
+Write-Host "Review the ToDisable CSV before proceeding"
+
+
+
+Step 2 — Execute Disable in Controlled Batches
+
+# Configuration
+$batchSize = 500
+$delayBetweenBatches = 30  # seconds - gives you time to abort if needed
+$successLog = "$logPath\Disabled_Success.csv"
+$failureLog = "$logPath\Disabled_Failed.csv"
+$summaryLog = "$logPath\Execution_Summary.txt"
+
+$successResults = [System.Collections.Generic.List[object]]::new()
+$failureResults = [System.Collections.Generic.List[object]]::new()
+
+# Load your confirmed disable list
+$disableList = Import-Csv "$logPath\Guests_ToDisable.csv"
+
+$totalBatches = [math]::Ceiling($disableList.Count / $batchSize)
+$batchNumber = 0
+
+Write-Host "Starting disable operation: $($disableList.Count) accounts" `
+    -ForegroundColor Yellow
+Write-Host "Batches: $totalBatches | Batch size: $batchSize" `
+    -ForegroundColor Yellow
+
+for ($i = 0; $i -lt $disableList.Count; $i += $batchSize) {
+    $batchNumber++
+    $batch = $disableList[$i..([math]::Min($i + $batchSize - 1, 
+             $disableList.Count - 1))]
+    
+    Write-Host "`nProcessing batch $batchNumber of $totalBatches..." `
+        -ForegroundColor Cyan
+
+    foreach ($guest in $batch) {
+        try {
+            Update-MgUser -UserId $guest.Id `
+                -AccountEnabled:$false `
+                -ErrorAction Stop
+
+            $successResults.Add([PSCustomObject]@{
+                Id          = $guest.Id
+                UPN         = $guest.UserPrincipalName
+                DisplayName = $guest.DisplayName
+                LastSignIn  = $guest.LastSignIn
+                DisabledAt  = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
+                Batch       = $batchNumber
+            })
+        }
+        catch {
+            $failureResults.Add([PSCustomObject]@{
+                Id          = $guest.Id
+                UPN         = $guest.UserPrincipalName
+                DisplayName = $guest.DisplayName
+                Error       = $_.Exception.Message
+                Batch       = $batchNumber
+            })
+            Write-Host "  FAILED: $($guest.UserPrincipalName) — $_" `
+                -ForegroundColor Red
+        }
+    }
+
+    Write-Host "Batch $batchNumber complete. " `
+        "Success: $($successResults.Count) | " `
+        "Failed: $($failureResults.Count)" -ForegroundColor Green
+
+    # Export running logs after each batch
+    $successResults | Export-Csv $successLog -NoTypeInformation
+    $failureResults | Export-Csv $failureLog -NoTypeInformation
+
+    # Pause between batches unless it's the last one
+    if ($batchNumber -lt $totalBatches) {
+        Write-Host "Pausing $delayBetweenBatches seconds before next batch..." `
+            -ForegroundColor Gray
+        Start-Sleep -Seconds $delayBetweenBatches
+    }
+}
+
+# Final summary
+$summary = @"
+Guest Account Disable Operation — Execution Summary
+====================================================
+Executed by : [Your Name]
+Executed at : $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+CISO Approval: [CISO Name] — [date of email]
+Change Request: [CR number]
+
+Threshold    : Last sign-in before 2026-01-01 or never signed in
+Total targeted: $($disableList.Count)
+Successfully disabled: $($successResults.Count)
+Failed: $($failureResults.Count)
+
+6-month deletion review scheduled: [date]
+Log location: $logPath
+"@
+
+$summary | Out-File "$logPath\Execution_Summary.txt"
+Write-Host "`n$summary" -ForegroundColor Green
+
+
+
+Step 3 — Verify a Sample Post-Execution
+
+# Spot check - verify 20 random accounts are actually disabled
+$sampleCheck = $successResults | Get-Random -Count 20
+
+foreach ($account in $sampleCheck) {
+    $current = Get-MgUser -UserId $account.Id `
+        -Property AccountEnabled, DisplayName
+    
+    [PSCustomObject]@{
+        DisplayName    = $current.DisplayName
+        AccountEnabled = $current.AccountEnabled
+        ExpectedState  = "False"
+        Verified       = ($current.AccountEnabled -eq $false)
+    }
+} | Format-Table -AutoSize
+
+
