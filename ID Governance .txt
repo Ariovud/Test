@@ -1,0 +1,123 @@
+Executive Summary
+
+Today we manually disabled 16,177 stale guest accounts that had accumulated in our tenant over several years without detection or review. This operation required dedicated engineering time to audit, script, validate, and execute safely. Without a structural change to how external identities are lifecycle-managed, this situation will recur at the same scale. This document outlines the business case for Microsoft Entra ID Governance as the sustainable solution.
+
+The Problem We Are Solving
+
+Our tenant currently has no automated mechanism to:
+
+	•	Review whether guest users still require access after invitation
+	•	Notify internal sponsors when their guests become inactive
+	•	Automatically disable or remove external identities that are no longer needed
+	•	Conduct access reviews for internal users across privileged roles, groups, and applications
+	•	Demonstrate to auditors that access is periodically reviewed and certified
+
+The consequence of this gap is evidenced directly by today’s operation — 16,177 external identities remained active and enabled in our tenant, some for up to five years, with no review, no sponsor accountability, and no visibility. Each of those accounts represented an external authentication point into our environment with no MFA enforced until this week.
+
+This is not a one-time problem. Without automation it will rebuild at the same rate.
+
+What Microsoft Entra ID Governance Provides
+
+Entra ID Governance is Microsoft’s identity lifecycle management platform. The capabilities directly relevant to our environment are:
+
+Access Reviews
+Automated periodic reviews of guest accounts, group memberships, privileged role assignments, and application access. Reviewers — either sponsors, managers, or the users themselves — receive automated notifications to confirm ongoing need. Accounts where no response is received can be automatically disabled or removed based on defined policy. This directly replaces the manual operation we performed today.
+
+Entitlement Management
+Structured access packages that define what resources a user — internal or external — should have access to, for how long, and under what approval workflow. Guest users can be invited through a governed process that automatically assigns access, sets an expiry date, and triggers renewal or removal at that date. This prevents uncontrolled guest accumulation entirely.
+
+Lifecycle Workflows
+Automated identity lifecycle actions triggered by events — joiner, mover, leaver. For guests this means automatic offboarding when a defined period of inactivity is reached, without manual intervention.
+
+Privileged Identity Management — Extended
+We already use PIM for Entra role activation. ID Governance extends this to include access reviews of privileged role holders, ensuring that role assignments are periodically certified and unnecessary privilege is removed automatically.
+
+Licensing Options and Cost
+
+There are two paths to acquiring this capability within our existing Microsoft agreement:
+
+Option 1 — Microsoft Entra ID Governance Standalone
+
+	•	Licensed per user per month
+	•	Covers both members and guests
+	•	Current Microsoft list price: approximately $7 per user per month
+	•	Applied to our environment: this would cover our member user population for internal access reviews and our guest population for external lifecycle management
+
+Guests are typically licensed at a ratio — Microsoft’s current model allows up to 5 guests per licensed member user under certain conditions, which given our guest-to-member ratio needs to be validated with our Microsoft account team
+
+Option 2 — Microsoft Entra Suite
+
+	•	Bundles ID Governance with Entra Internet Access, Private Access, and ID Protection
+	•	More cost-effective if we intend to mature our Zero Trust network access controls alongside identity governance
+	•	Current Microsoft list price: approximately $12 per user per month
+
+Given our existing P1/P2 and E3/E5 investments, our Microsoft account team should be able to provide a delta pricing model based on what we already own
+
+Important note on guest licensing:
+Microsoft’s guest licensing model for ID Governance specifically needs to be confirmed with our account team as it has evolved. The current general position is that guests are covered under the MAU (Monthly Active Users) billing model for external identities, but access reviews for guests require the member users who own those reviews to be licensed. I recommend a formal licensing conversation with Microsoft before committing to a number.
+
+Cost Benefit Analysis
+
+Current state cost — manual operation:
+
+|Activity                                     |Estimated Engineering Time|
+|---------------------------------------------|--------------------------|
+|Guest audit and script development           |4 hours                   |
+|Validation and CISO communication            |2 hours                   |
+|Batch execution and monitoring               |3 hours                   |
+|Post-execution verification and documentation|1 hour                    |
+|**Total this operation**                     |**10 hours**              |
+
+
+This operation will need to be repeated at minimum annually. At the rate guests accumulated — approximately 3,000-4,000 stale accounts per year based on our current data — the manual overhead compounds. Additionally this does not account for:
+
+	•	Engineering time handling re-enablement requests reactively
+	•	Risk cost of stale accounts sitting enabled between manual reviews
+	•	Audit and compliance exposure of being unable to demonstrate periodic access certification
+	•	Internal user privileged access reviews which are currently not happening at all
+
+Automated state cost — with ID Governance:
+
+	•	Quarterly automated access reviews configured once, running continuously
+	•	Sponsor notifications sent automatically with no engineering involvement
+	•	Stale accounts disabled automatically based on policy
+
+Full audit trail generated automatically for compliance
+	•	Engineering time per cycle: approximately 1 hour to review results and handle exceptions
+
+Risk quantification:
+
+The 16,177 accounts we disabled today had no MFA enforced until this week’s CA policy change. Any one of those accounts represented a potential entry point into our tenant. In a tenant that has suffered a breach through a compromised external identity, the average cost of a cloud identity breach — based on IBM’s 2024 Cost of a Data Breach report — exceeds $4.5 million. The license cost of preventing this is not comparable to the risk.
+
+Additionally, our E3/E5 and P1/P2 investment is partially undermined without governance — we have strong authentication controls now but no assurance that the identities those controls protect are themselves valid and current.
+
+What We Are Not Able to Do Without This License
+
+To be explicit for decision-making purposes, without ID Governance we cannot:
+
+	•	Automate guest lifecycle management — every review is manual engineering work
+	•	Conduct auditable access reviews for privileged role holders beyond PIM activation logs
+	•	Demonstrate to external auditors periodic access certification across our environment
+	•	Implement entitlement management for structured governed access requests
+	•	Meet the access review requirements of ISO 27001, SOC 2, and similar frameworks if these apply to us now or in future
+
+Recommendation
+
+I recommend we initiate a formal licensing conversation with our Microsoft account team to obtain:
+
+	•	Exact pricing based on our current agreement and existing license stack
+	•	Guest licensing model confirmation for ID Governance access reviews
+	•	Evaluation tenant or trial access to validate the solution against our environment before committing
+
+This conversation costs nothing and gives us the precise numbers needed to make a final investment decision. I can initiate this with our Microsoft account team directly if you approve.
+
+Pending that conversation, my recommendation is to proceed with Entra ID Governance standalone as the minimum viable investment, with Entra Suite evaluated as an alternative if the bundle pricing represents better value given our Zero Trust roadmap.
+
+Immediate Next Steps Pending Approval
+
+	1.	Microsoft account team engagement for pricing — this week
+	2.	Trial or proof of concept in our tenant — 2 weeks
+	3.	Access review policy design for guests and privileged roles — 2 weeks
+	4.	Full deployment and automation configuration — 4 weeks
+
+Total time from approval to automated guest lifecycle management running: approximately 6-8 weeks.
