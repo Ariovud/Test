@@ -1,0 +1,62 @@
+Connect-MgGraph -Scopes "User.Read.All", "AuditLog.Read.All" `
+    -UseDeviceAuthentication -NoWelcome
+
+$disableOperationDate = "2026-06-23"  # the date you executed the original disable
+$reportDate = Get-Date -Format "yyyy-MM-dd"
+$logPath = "C:\IAM\GuestReEnabled_Report_$reportDate"
+New-Item -ItemType Directory -Path $logPath -Force
+
+# Pull the original disabled list for comparison
+$originalDisabledList = Import-Csv "C:\IAM\GuestDisable_[your original folder]\Disabled_Success.csv"
+
+Write-Host "Original accounts disabled: $($originalDisabledList.Count)"
+
+# Check current status of every account from the original disable list
+$reEnabledAccounts = [System.Collections.Generic.List[object]]::new()
+$stillDisabled     = [System.Collections.Generic.List[object]]::new()
+
+foreach ($account in $originalDisabledList) {
+    try {
+        $current = Get-MgUser -UserId $account.Id `
+            -Property AccountEnabled, DisplayName, UserPrincipalName,
+                     SignInActivity -ErrorAction Stop
+
+        if ($current.AccountEnabled -eq $true) {
+            
+            # This account has been re-enabled - find out when and by whom
+            $reEnableAudit = Get-MgAuditLogDirectoryAudit -All `
+                -Filter "activityDisplayName eq 'Enable account' and 
+                         targetResources/any(t:t/id eq '$($account.Id)')" `
+                -ErrorAction SilentlyContinue
+
+            $reEnabledAccounts.Add([PSCustomObject]@{
+                UPN                = $current.UserPrincipalName
+                DisplayName        = $current.DisplayName
+                OriginalDisableDate = $account.DisabledAt
+                ReEnabledDate      = if ($reEnableAudit) {
+                    $reEnableAudit[0].ActivityDateTime
+                } else { "Unknown — audit log retention may have expired" }
+                ReEnabledBy        = if ($reEnableAudit) {
+                    $reEnableAudit[0].InitiatedBy.User.UserPrincipalName
+                } else { "Unknown" }
+                LastSignInSinceReEnable = $current.SignInActivity.LastSignInDateTime
+            })
+        }
+        else {
+            $stillDisabled.Add($account)
+        }
+    }
+    catch {
+        # Account may have been deleted since
+        Write-Host "Could not retrieve $($account.UPN) — may be deleted" `
+            -ForegroundColor Yellow
+    }
+}
+
+$reEnabledAccounts | Export-Csv "$logPath\ReEnabled_Guests_Report.csv" `
+    -NoTypeInformation
+
+Write-Host "`n=== Summary ==="
+Write-Host "Total originally disabled : $($originalDisabledList.Count)"
+Write-Host "Re-enabled since          : $($reEnabledAccounts.Count)"
+Write-Host "Still disabled            : $($stillDisabled.Count)"
