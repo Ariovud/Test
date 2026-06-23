@@ -1,0 +1,73 @@
+# KB Article — Guest Account MFA Enforcement
+
+**Audience:** Regional Service Desk Teams
+**Effective Date:** [Wednesday 8th July 2026]
+**Owner:** IAM Team — [your name]
+**Last Updated:** [date]
+
+---
+
+## Summary
+
+From **[8th July 2026]**, all external guest accounts accessing company systems (Microsoft Teams, SharePoint, and other Microsoft 365 applications) will be required to register and use multi-factor authentication (MFA) to sign in.
+
+This is a security enhancement. No action is required from internal staff. This affects **external guest users only** — vendors, partners, contractors, and other external collaborators who have been invited into our tenant.
+
+---
+
+## What the Guest User Will Experience
+
+When an affected guest signs in after the effective date, they will see a prompt asking them to set up additional sign-in verification (MFA) before they can continue. This is a one-time setup that takes approximately 2 minutes. They will be guided through registering either:
+
+- The Microsoft Authenticator app (recommended), or
+- A phone number to receive a text message verification code
+
+Guests who already have MFA registered will not see any change and will not be affected.
+
+---
+
+## What to Tell Guests Who Contact the Service Desk
+
+**If a guest reports they cannot sign in or are stuck on a verification screen:**
+
+This is expected behaviour, not an error. Reassure them:
+
+> "This is part of a planned security update. You'll need to complete a quick one-time setup to verify your identity. Please follow the on-screen prompts — it takes about two minutes. If you don't have your mobile phone with you, you can also choose to receive a code by text message instead of using the authenticator app."
+
+**If a guest asks whether the email/prompt is legitimate:**
+
+Confirm it is. The notification email is sent from **security@[company].com**. The in-product prompt comes directly from Microsoft's sign-in screen — it will never ask for a password to be typed into a non-Microsoft page. If a guest is suspicious, advise them to navigate directly to their usual sign-in page rather than clicking any link, and the prompt will appear there.
+
+**If a guest says they no longer need access / no longer work with us:**
+
+No action needed from the guest. Log a note and pass to IAM — the account will be reviewed as part of standard guest lifecycle management.
+
+**If a guest's MFA registration fails repeatedly or they are fully locked out:**
+
+Do not attempt to reset or bypass this at the service desk level. Escalate to IAM (see below) with the guest's email address and the internal sponsor/contact they work with at our company, if known.
+
+
+## What This Does NOT Affect
+
+- Internal employee accounts — no change
+- Guests who have already registered MFA — no change to their experience
+- Any application or system not part of Microsoft 365 / Entra ID sign-in
+
+---
+
+## Escalation Path
+
+If a guest cannot resolve the issue with the guidance above, or reports something unusual (e.g. MFA prompt appearing for an account they don't recognise, suspected phishing impersonating this communication):
+
+**Escalate to:** IAM Team — [ticket queue / email / Teams channel]
+**Information to include:** Guest email address, internal sponsor/contact (if known), description of the issue, screenshot if available
+
+---
+
+## Background (For Reference Only — Not for Sharing With Guests)
+
+This change is part of the company's ongoing Zero Trust security programme, enforcing MFA for all external identities accessing company systems. It was approved by the CISO and IAM Director. Guest users were notified directly by email ahead of the enforcement date with instructions on how to register in advance.
+
+---
+
+*For questions about this KB article, contact the IAM Team.*
