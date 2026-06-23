@@ -1,0 +1,63 @@
+# Connect to Microsoft Graph
+Connect-MgGraph -Scopes "AuditLog.Read.All", "User.Read.All", "Directory.Read.All"
+
+$startDate = "2026-06-12T00:00:00Z"  # Adjust as needed
+$endDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+# Query directory audit logs for Update user activities since the date
+# Filter broadly first, then refine in PowerShell for complex conditions
+$filter = "activityDateTime ge $startDate and activityDateTime le $endDate and activityDisplayName eq 'Update user'"
+
+Write-Host "Fetching audit logs for re-enabled guest accounts..." -ForegroundColor Cyan
+$audits = Get-MgAuditLogDirectoryAudit -Filter $filter -All -PageSize 500
+
+# Process for guest users and accountEnabled changes to true
+$reEnabledGuests = @()
+
+foreach ($audit in $audits) {
+    $target = $audit.TargetResources | Where-Object { $_.Type -eq 'User' }
+    if (-not $target) { continue }
+
+    # Get user details to confirm it's a guest
+    $user = Get-MgUser -UserId $target.Id -Property Id, DisplayName, UserPrincipalName, UserType, AccountEnabled -ErrorAction SilentlyContinue
+    if ($user -and $user.UserType -eq 'Guest') {
+        
+        # Check modified properties for accountEnabled set to True
+        $accountEnabledChange = $target.ModifiedProperties | Where-Object { 
+            $_.DisplayName -eq 'AccountEnabled' -and $_.NewValue -match 'true'
+        }
+        
+        if ($accountEnabledChange) {
+            $reEnabledGuests += [PSCustomObject]@{
+                ActivityDateTime     = $audit.ActivityDateTime
+                InitiatedBy          = if ($audit.InitiatedBy.User) { $audit.InitiatedBy.User.UserPrincipalName } else { $audit.InitiatedBy.App.DisplayName }
+                TargetDisplayName    = $user.DisplayName
+                UserPrincipalName    = $user.UserPrincipalName
+                UserId               = $user.Id
+                NewValue             = $accountEnabledChange.NewValue
+                OldValue             = $accountEnabledChange.OldValue
+                AdditionalDetails    = ($target.ModifiedProperties | ForEach-Object { "$($_.DisplayName): $($_.NewValue)" }) -join "; "
+                CorrelationId        = $audit.CorrelationId
+                Category             = $audit.Category
+            }
+        }
+    }
+}
+
+# Report
+if ($reEnabledGuests.Count -eq 0) {
+    Write-Host "No re-enabled guest accounts found since $startDate." -ForegroundColor Yellow
+} else {
+    Write-Host "Found $($reEnabledGuests.Count) re-enabled guest account(s):" -ForegroundColor Green
+    $reEnabledGuests | Format-Table ActivityDateTime, InitiatedBy, TargetDisplayName, UserPrincipalName -AutoSize
+    
+    # Export to CSV
+    $csvPath = "ReEnabled_Guest_Accounts_$(Get-Date -Format 'yyyyMMdd_HHmm').csv"
+    $reEnabledGuests | Export-Csv -Path $csvPath -NoTypeInformation
+    Write-Host "Report exported to $csvPath" -ForegroundColor Green
+    
+    # Optional: HTML report
+    $htmlPath = "ReEnabled_Guest_Accounts_$(Get-Date -Format 'yyyyMMdd_HHmm').html"
+    $reEnabledGuests | ConvertTo-Html -Property ActivityDateTime, InitiatedBy, TargetDisplayName, UserPrincipalName, AdditionalDetails -Title "Re-Enabled Guest Accounts Report" | Out-File $htmlPath
+    Write-Host "HTML report: $htmlPath" -ForegroundColor Green
+}
