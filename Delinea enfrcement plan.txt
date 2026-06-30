@@ -1,0 +1,93 @@
+Privileged Access Management
+Delinea Enforcement Plan
+Prepared for: Chief Information Security Officer
+Prepared by: IAM Manager
+Date: [insert date]
+Classification: Internal — Security Programme
+ Executive Summary
+Delinea is currently deployed in this environment and is functionally well positioned: all in-scope servers are discovered and onboarded, secrets are onboarded for those systems, and all administrators already hold the required licensing to use the platform fully. Despite this strong technical foundation, actual usage today is limited to password rotation. There is no enforcement of privileged access sessions, no session recording, no approval workflow, and no just-in-time access. The majority of privileged access to our most sensitive systems — including Domain Controllers — is being performed through direct connections outside the PAM tool, with no audit trail of what privileged users do during administrative sessions.
+This represents a material gap against Zero Trust principles and Microsoft's identity security best practices — not a tooling or licensing gap, but an adoption and enforcement gap. A compromised privileged credential used directly against a Tier 0 system would not be detected by any control currently in place beyond Microsoft Defender for Identity's behavioural anomaly detection.
+Because the underlying platform work — server onboarding, secret onboarding, and licensing — is already complete, this plan is shorter and faster than a typical PAM rollout. It proposes a focused, eight-week programme to move from passive rotation to full enforcement: a short admin training period, enabled session recording, network-level controls preventing direct access that bypasses the tool, and approval-based just-in-time access for our most sensitive systems.
+This programme requires no new licensing spend and no further onboarding project — the platform is ready. It requires CISO sponsorship to mandate adoption across infrastructure teams, and a defined training window so that all administrators are equipped and have no reasonable basis to bypass the tool once enforcement begins.
+1. Current State Assessment
+Delinea Secret Server is deployed in our environment with a stronger technical foundation than is typically the starting point for a PAM enforcement programme. Specifically:
+•	All in-scope servers have been discovered and onboarded to the platform
+•	Secrets for those onboarded systems are onboarded and under scheduled rotation
+•	All administrators already hold the licensing required to use Delinea's full session and access management capability
+Despite this, day-to-day usage remains limited to password rotation only. The broader privileged access management capabilities the platform supports are not in use. Specifically, today:
+•	Privileged credentials can be retrieved and used directly outside of any monitored session
+•	No session recording exists for administrative access to any system, including Domain Controllers
+•	No approval workflow governs who can access privileged accounts or when
+•	No just-in-time provisioning exists — privileged credentials are persistent rather than created on demand
+•	Direct RDP and other remote administration paths to Tier 0 systems remain open and unmonitored
+•	Active usage of Delinea for session access, rather than password rotation alone, is low across the engineering team despite licensing already being in place
+In short: the platform investment is complete and ready. What remains is adoption, training, and enforcement — which is what this plan addresses.
+1.1 Risk Statement
+In the event of a compromised privileged credential, our current control set provides no session-level detection, no recording for forensic review, and no technical barrier preventing direct use of that credential against Tier 0 infrastructure. This is the single largest gap in our current Zero Trust posture relative to the maturity already achieved in identity authentication controls (Conditional Access, MFA enforcement, PIM for Entra roles) — and notably, it is a gap that exists despite having the platform and licensing already in place to close it.
+2. Programme Objectives
+•	Bring all Tier 0 and Tier 1 privileged accounts and systems under full Delinea management
+•	Enforce session recording for all privileged administrative access
+•	Eliminate direct administrative access paths that bypass the PAM platform for Tier 0 systems
+•	Introduce approval-based, time-limited access for our most sensitive systems
+•	Establish continuous monitoring to detect and alert on any bypass attempt
+3. Scope and Tiering Model
+Systems and accounts are classified to determine the level of control applied. This tiering aligns with Microsoft's privileged access strategy guidance.
+Tier	Examples	Control Level
+Tier 0	Domain Controllers, Entra ID Connect servers, Enterprise/Domain Admin accounts	Full enforcement: session recording, approval workflow, just-in-time access, network-level access restriction
+Tier 1	Member servers, application service accounts, standard server administration	Session recording enforced, checkout-based access, password rotation
+Tier 2	Workstation-level administration	Standard rotation and onboarding; session enforcement phased in after Tier 0/1 complete
+
+4. Phased Implementation Plan
+Because server discovery, onboarding, secret onboarding, and admin licensing are already complete, this programme is structured as a focused eight-week effort rather than a full rollout. Each phase has a defined deliverable and exit criteria before progressing to the next.
+Phase 1 — Validation and Policy Configuration (Week 1)
+•	Confirm onboarded secrets and servers are correctly tiered (Tier 0 / Tier 1 / Tier 2) and checkout policies, rotation schedules, and approval workflow are configured per tier
+•	Password visibility disabled for end users — credentials injected directly into sessions, never displayed
+•	Brief gap check only — given onboarding is complete, this phase confirms readiness rather than discovering scope from scratch
+Phase 2 — Mandatory Admin Training (Weeks 2–3)
+•	Structured training session(s) for all administrators covering: why enforcement is happening, how to check out a secret, how to launch a session through Delinea, and the approval workflow for Tier 0 access
+•	Hands-on walkthrough in a non-production system so every admin completes at least one live session before enforcement begins
+•	Attendance and completion tracked — every admin with access to Tier 0 or Tier 1 systems must complete training before enforcement go-live, removing any basis to claim unfamiliarity with the tool post-enforcement
+•	Reference quick-guide circulated and published to the team knowledge base
+Phase 3 — Session Enforcement (Weeks 3–6, overlapping training)
+•	Session recording enabled for all privileged sessions
+•	Network-level restriction implemented so direct administrative access to Tier 0 systems is only possible through the Delinea session proxy
+•	Redundant session connectors deployed to ensure availability
+•	Accounts currently under review for interactive sign-in usage (separate discovery workstream in progress) excluded from enforcement until that review concludes, to avoid disrupting legitimate access while it is being assessed
+Phase 4 — Just-in-Time Access, Monitoring, and Go-Live (Weeks 6–8)
+•	Approval-based, time-limited access workflow live for Tier 0 systems
+•	SIEM detection rules implemented to alert on any direct access attempt that bypasses the platform
+•	Formal enforcement go-live for all trained administrators
+•	Programme review and handover to standard operations
+5. Resourcing
+No additional licensing or platform spend is required — server onboarding, secret onboarding, and admin licensing are already in place. The investment required is engineering and admin time over the eight-week window.
+Phase	Primary Owner	Estimated Effort
+1 — Validation	IAM Manager / PAM-assigned engineer	2–3 days
+2 — Training	IAM Manager / PAM-assigned engineer, all admins	Half-day session preparation; 1–2 hours per admin attending
+3 — Session Enforcement	PAM-assigned engineer, infrastructure team support	3–4 weeks part-time alongside other duties
+4 — JIT and Go-Live	IAM Manager, PAM-assigned engineer, SecOps for SIEM rules	1–2 weeks
+
+6. Success Metrics
+Progress and completion will be measured against the following at the end of the programme:
+•	100% of Tier 0 and Tier 1 administrators have completed mandatory training prior to enforcement go-live
+•	100% of in-scope privileged sessions to Tier 0 systems pass through Delinea rather than direct connection
+•	Zero unauthorized direct-access alerts in the 30 days following enforcement go-live
+•	100% of Tier 0 sessions have session recording available for review
+•	Just-in-time approval workflow operational and in active use for all Tier 0 access requests
+7. Break-Glass and Emergency Access
+Break-glass emergency accounts remain excluded from routine session enforcement and approval workflow, consistent with their purpose as last-resort access when standard identity and access controls are unavailable. These accounts will be brought under Delinea governance with appropriate emergency-specific controls, including DoubleLock protection and mandatory post-use review, rather than the standard checkout and approval workflow applied to day-to-day administrative access.
+8. What This Requires From the Organisation
+This programme is achievable within existing tooling, existing licensing, and existing team capacity, but it requires organisational backing in two specific areas:
+•	CISO mandate that privileged access to Tier 0 systems must go through Delinea from the enforcement go-live date — without this, infrastructure teams are likely to resist adopting a less familiar workflow despite having completed training
+•	Cooperation from infrastructure teams to attend training and adopt the new access workflow during Phase 3, including brief operational disruption during cutover (estimated 15–30 seconds added per session)
+9. Risk and Mitigation
+Risk	Mitigation	Owner
+Operational resistance from infrastructure teams despite training	CISO-backed mandate; mandatory training with tracked completion; phased rollout starting with Tier 0 only	IAM Manager / CISO
+Session connector unavailability blocking legitimate access	Redundant connectors deployed; documented emergency break-glass procedure	IAM Manager
+Accounts found to be used interactively that do not fit standard service account controls	Separate discovery workstream already underway; affected accounts excluded from this enforcement timeline until resolved	IAM Manager
+
+10. Request
+I am requesting your support to mandate this programme with infrastructure teams and to sponsor the eight-week timeline above. No additional licensing cost is required and no further platform onboarding is needed — the only investment is time, primarily concentrated in the training and enforcement phases.
+Without a clear mandate to infrastructure teams, adoption is likely to remain partial despite training being delivered, and the current gap in session visibility and audit trail for Tier 0 access will persist unchanged.
+I welcome the opportunity to walk through this plan in person if useful.
+[Your name]
+IAM Manager
