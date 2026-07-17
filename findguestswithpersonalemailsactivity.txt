@@ -1,0 +1,85 @@
+Connect-MgGraph -Scopes "User.Read.All", "AuditLog.Read.All" `
+    -UseDeviceAuthentication -NoWelcome
+
+$personalDomains = @(
+    "gmail.com", "outlook.com", "hotmail.com",
+    "yahoo.com", "icloud.com", "proton.me", "onmicrosoft.com"
+)
+
+$allGuests = Get-MgUser -All `
+    -Filter "userType eq 'Guest' and accountEnabled eq true" `
+    -Property Id, DisplayName, UserPrincipalName,
+             Mail, SignInActivity, CreatedDateTime
+
+# Extract domain from #EXT# UPN format
+# Format: firstname_domain.com#EXT#@tenant.onmicrosoft.com
+# We extract the original email domain from before the #EXT#
+
+$personalDomainGuests = foreach ($guest in $allGuests) {
+    
+    $upn = $guest.UserPrincipalName
+    
+    # Extract the part before #EXT#
+    $originalEmail = $upn -replace '#EXT#.*$', ''
+    
+    # Replace the last underscore with @ to reconstruct original email
+    # UPN encodes @ as _ so user@gmail.com becomes user_gmail.com#EXT#@tenant
+    $lastUnderscore = $originalEmail.LastIndexOf('_')
+    
+    if ($lastUnderscore -gt 0) {
+        $reconstructed = $originalEmail.Substring(0, $lastUnderscore) + '@' + 
+                         $originalEmail.Substring($lastUnderscore + 1)
+        $domain = $reconstructed -replace '.*@', ''
+    } else {
+        $domain = "unknown"
+    }
+
+    if ($domain -in $personalDomains) {
+        $lastSignIn  = $guest.SignInActivity.LastSignInDateTime
+        $daysSince   = if ($lastSignIn) {
+            [math]::Round(((Get-Date) - [datetime]$lastSignIn).TotalDays)
+        } else { $null }
+
+        [PSCustomObject]@{
+            UPN             = $upn
+            ReconstructedEmail = $reconstructed
+            DisplayName     = $guest.DisplayName
+            Domain          = $domain
+            CreatedDate     = $guest.CreatedDateTime
+            LastSignIn      = $lastSignIn
+            DaysSinceSignIn = $daysSince
+            ActivityBucket  = if (-not $lastSignIn) {
+                "Never signed in"
+            } elseif ($daysSince -le 30) {
+                "Active — last 30 days"
+            } elseif ($daysSince -le 90) {
+                "Active — last 90 days"
+            } elseif ($daysSince -le 180) {
+                "Moderate — last 180 days"
+            } elseif ($daysSince -le 365) {
+                "Infrequent — last 12 months"
+            } else {
+                "Stale — over 12 months ago"
+            }
+        }
+    }
+}
+
+# Summary by activity bucket
+Write-Host "`n=== Activity Summary ==="
+$personalDomainGuests | Group-Object ActivityBucket |
+    Sort-Object Name |
+    Select-Object Count, Name | Format-Table -AutoSize
+
+# Summary by domain
+Write-Host "`n=== By Domain ==="
+$personalDomainGuests | Group-Object Domain |
+    Sort-Object Count -Descending |
+    Select-Object Count, Name | Format-Table -AutoSize
+
+Write-Host "`nTotal personal domain guests found: $($personalDomainGuests.Count)"
+
+$personalDomainGuests | Export-Csv `
+    "C:\IAM\PersonalDomain_Guests_Activity.csv" -NoTypeInformation
+
+Write-Host "Report exported to C:\IAM\PersonalDomain_Guests_Activity.csv"
